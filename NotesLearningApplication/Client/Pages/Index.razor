@@ -1,0 +1,81 @@
+﻿@page "/"
+
+@using NotesLearningApplication.Shared.DTO
+@using Plotly.Blazor.LayoutLib
+@inject HttpClient Http
+
+
+<PageTitle>Index</PageTitle>
+
+<h1>Welcome to the website!</h1>
+
+<div class="container">
+    <div class="row">
+    <div class="col-3">
+
+        <div class="card   border-primary">
+            <div class="card-body">
+                <h5 class="card-title">All notes</h5>
+                <p class="card-text">There are currently @NotesCount notes in database.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-9">
+        <div class="card   border-primary">
+            <div class="card-body">
+                <h5 class="card-title p-5">Notes by category</h5>
+                    @if(ShowSpinner){
+                     <div class="spinner-border text-primary" role="status" />
+                    }
+                    <div  style=@ChartStyle  >
+                        <PlotlyChart Id=TestId Config=config Layout=layout @ref=chart/>
+                    </div>
+            </div>
+        </div>
+    </div>
+    </div>
+</div>
+@code {
+    private int NotesCount { get; set; }
+    private List<CategoryCountDTO> CategoriesInfos { get; set; }
+    private bool ShowSpinner { get; set; } = true;
+    private string ChartStyle { get; set; } = "display:none";
+
+    protected async override Task OnInitializedAsync() {
+        NotesCount = await Http.GetFromJsonAsync<int>("api/notes/count");
+        CategoriesInfos = await Http.GetFromJsonAsync<List<CategoryCountDTO>>("api/notes/count/categories");
+        DrawChart();
+        ShowSpinner = false;
+        ChartStyle = "";
+        StateHasChanged();
+    }
+
+    PlotlyChart chart;
+    Config config = new Config { Responsive = true };
+    Layout layout = new Layout { Title = new Title { Text = "Notes by category" },PaperBgColor=11111};
+
+
+
+    private void DrawChart() {
+        chart.Clear();
+        chart.AddTrace(
+            new Pie() {
+                    Values = (List<object>)CategoriesInfos.Select(catInfo => (object)catInfo.Count).ToList(),
+                    Labels = (List<object>)CategoriesInfos.Select(catInfo => (object)catInfo.Name).ToList()
+                }
+        );
+
+        //chart.AddTrace(
+        // new Pie
+        //{
+        //    Values = new List<object> {19, 26, 55},
+        //    Labels = new List<object> {"Residential", "Non-Residential", "Utility"}
+        //});
+        chart.NewPlot();
+        chart.React();
+        chart.Relayout();
+
+        chart.Update();
+
+    }
+}

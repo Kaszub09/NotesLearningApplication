@@ -1,0 +1,280 @@
+﻿@page "/Categories"
+@using NotesLearningApplication.Shared.DTO
+@using System.ComponentModel
+@inject HttpClient Http
+
+
+<PageTitle>Categories</PageTitle>
+
+@if (AlertSuccess != null) {
+    <div class="alert alert-dismissible alert-success">
+        <button type="button" class="btn-close" @onclick=DismissAllAlerts></button>
+        <p> @AlertSuccess</p>
+    </div>
+}
+@if (AlertError != null) {
+    <div class="alert alert-dismissible alert-danger">
+        <button type="button" class="btn-close" @onclick=DismissAllAlerts></button>
+        <p> @AlertError</p>
+    </div>
+}
+<h1>Categories</h1>
+<AuthorizeView>
+    <Authorized>
+        <button class="m-1 btn btn-primary" @onclick=OpenModalForNew>Add new category</button>
+    </Authorized>
+</AuthorizeView>
+<table class="table table-striped table-sm  table-bordered table-hover  text-nowrap w-100" style="table-layout: fixed; ">
+    <thead class="sticky-top  table-primary">
+        <tr>
+            <th role="button" scope="col" style="width: 6%" class="pe-auto user-select-none @GetColumnClass("Id")" @onclick=@(_=>SortByColumn("Id"))>#<span class="mx-1 oi @GetColumnIcon("Id")"></span></th>
+            <th role="button" scope="col" style="width: 24%" class="pe-auto user-select-none @GetColumnClass("Name")" @onclick=@(_=>SortByColumn("Name"))>Name<span class="mx-1 oi @GetColumnIcon("Name")"></span></th>
+            <th role="button" scope="col" class="pe-auto user-select-none @GetColumnClass("Description")" @onclick=@(_=>SortByColumn("Description"))>Description<span class="mx-1 oi @GetColumnIcon("Description")"></span></th>
+            <AuthorizeView>
+                <Authorized>
+                    <th scope="col" class="user-select-none" style="width: 8%">Edit</th>
+                </Authorized>
+            </AuthorizeView>
+
+        </tr>
+    </thead>
+    <tbody>
+
+        @if (ShowLoadingSpinner) {
+            <tr>
+                <td colspan=4>
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status" />
+                    </div>
+                </td>
+            </tr>
+        }
+
+        @foreach (var category in DisplayCategories) {
+            <tr>
+                <td class="text-truncate" title="@category.Id">@category.Id</td>
+                <td class="text-truncate" title="@category.Name">@category.Name</td>
+                <td class="text-truncate" title="@category.Description">@category.Description</td>
+                <AuthorizeView>
+                    <Authorized>
+                        <td><button class="btn px-1 py-0 btn-primary" @onclick="_=>OpenModalForEdit(category.Id)">Edit</button></td>
+                    </Authorized>
+                </AuthorizeView>
+
+
+            </tr>
+        }
+
+    </tbody>
+</table>
+
+@if (ModalCategory != null) {
+    <div class="modal fade show" id="myModal" style="display:block; background-color: rgba(10,10,10,.8);" aria-modal="true" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+
+                <div class="modal-header">
+                    @if (IsModalEdit) {
+                        <h5 class="modal-title">Edit category</h5>
+                    } else {
+                        <h5 class="modal-title">Add new category</h5>
+                    }
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" @onclick=CloseModal></button>
+                </div>
+
+                <div class="modal-body">
+                    <EditForm Model="@ModalCategory" @ref=ModalDialogForm > 
+                        <DataAnnotationsValidator />
+                        <div class="form-group">
+                            <label>Name</label>
+                            <div>
+                                <InputText style="width: 80%" id="Name" @bind-Value="ModalCategory.Name" />
+                                <ValidationMessage For="()=>ModalCategory.Name">Name is required and must be non-empty</ValidationMessage>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Description</label>
+                            <div>
+                                <InputText style="width: 80%" id="Description" @bind-Value="ModalCategory.Description" />
+                            </div>
+                        </div>
+                    </EditForm>
+                </div>
+
+                <div class="modal-footer">
+                    <AuthorizeView Roles="Admin">
+                        <Authorized >
+                         @if (IsModalEdit) {
+                        <button type="button" class="btn btn-primary" @onclick=EditCategorySubmit disabled=@SaveButtonDisabled>Save</button>
+                        <button type="button" class="btn btn-danger" @onclick=RemoveCategorySubmit disabled=@SaveButtonDisabled>Remove</button>
+                    } else {
+                        <button type="button" class="btn btn-success" @onclick=AddCategorySubmit disabled=@AddButtonDisabled>Add</button>
+                    }
+                        </Authorized>
+                        <NotAuthorized>
+                           <span> You don't have permissions to adit or arr new categories!</span>
+                        </NotAuthorized>
+                    </AuthorizeView>
+                   
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" @onclick=CloseModal>Cancel</button>
+
+                </div>
+
+
+            </div>
+        </div>
+    </div>
+}
+
+
+
+
+
+
+
+@code {
+    private enum SortType { None, Ascending, Descending }
+
+    private List<CategoryDTO> AllCategories = new();
+    private List<CategoryDTO> DisplayCategories = new();
+
+    private (string columnName, SortType sortType) CurrentSortColumn = ("", SortType.None);
+
+    private bool ShowLoadingSpinner = false;
+
+    protected async override Task OnInitializedAsync() {
+        ShowLoadingSpinner = true;
+        AllCategories = await Http.GetFromJsonAsync<List<CategoryDTO>>("api/category") ?? new();
+        DisplayCategories = AllCategories;
+        CurrentSortColumn = ("", SortType.None);
+        ShowLoadingSpinner = false;
+    }
+
+    private string GetColumnIcon(string columnName) {
+        if (CurrentSortColumn.columnName == columnName) {
+            return CurrentSortColumn.sortType switch {
+                SortType.Ascending => "oi-sort-ascending",
+                SortType.Descending => "oi-sort-descending",
+                _ => ""
+            };
+        } else {
+            return "";
+        }
+    }
+
+    private string GetColumnClass(string columnName) {
+        return CurrentSortColumn.columnName == columnName && CurrentSortColumn.sortType != SortType.None ? "table-active" : "";
+    }
+
+    private void SortByColumn(string columnName) {
+        //Update current column and sort type
+        if (CurrentSortColumn.columnName != columnName) {
+            CurrentSortColumn.columnName = columnName;
+            CurrentSortColumn.sortType = SortType.Ascending;
+        } else {
+            CurrentSortColumn.sortType = CurrentSortColumn.sortType switch {
+                SortType.Ascending => SortType.Descending,
+                SortType.Descending => SortType.None,
+                SortType.None => SortType.Ascending,
+                _ => SortType.None,
+            };
+        }
+
+        PropertyDescriptor prop = TypeDescriptor.GetProperties(typeof(CategoryDTO)).Find(columnName, true);
+        switch (CurrentSortColumn.sortType) {
+            case SortType.Ascending:
+                DisplayCategories = AllCategories.OrderBy(x => prop.GetValue(x)).ToList();
+                break;
+            case SortType.Descending:
+                DisplayCategories = AllCategories.OrderByDescending(x => prop.GetValue(x)).ToList();
+                break;
+            default:
+                DisplayCategories = AllCategories;
+                break;
+        }
+    }
+
+    EditForm ModalDialogForm;
+    private CategoryDTO? ModalCategory;
+    private bool IsModalEdit;
+    private string? AlertSuccess;
+    private string? AlertError;
+
+    private bool AddButtonDisabled = false;
+    private bool SaveButtonDisabled = false;
+
+    private void CloseModal() {
+        ModalCategory = null;
+    }
+
+
+    private void OpenModalForEdit(int categoryId) {
+        var categoryToEdit = DisplayCategories.First(c => c.Id == categoryId);
+        ModalCategory = new CategoryDTO() { Id = categoryToEdit.Id, Name = categoryToEdit.Name, Description = categoryToEdit.Description };
+        IsModalEdit = true;
+    }
+    private void OpenModalForNew() {
+        ModalCategory = new CategoryDTO();
+        IsModalEdit = false;
+
+    }
+
+    private async void AddCategorySubmit() {
+        if (ModalDialogForm.EditContext.Validate()) {
+
+
+            AddButtonDisabled = true;
+            DismissAllAlerts();
+            var res = await Http.PostAsJsonAsync<CategoryDTO>("api/category/new", ModalCategory);
+            if (res.IsSuccessStatusCode) {
+                AlertSuccess = "Sucessfully added category";
+            } else {
+                AlertError = "Error when adding category: " + (int)res.StatusCode + " " + res.ReasonPhrase;
+            }
+            AddButtonDisabled = false;
+            CloseModal();
+            StateHasChanged();
+            await OnInitializedAsync();
+            StateHasChanged();
+        }
+    }
+    private async void EditCategorySubmit() {
+        if (ModalDialogForm.EditContext.Validate()) {
+            SaveButtonDisabled = true;
+            DismissAllAlerts();
+            var res = await Http.PutAsJsonAsync<CategoryDTO>("api/category/edit", ModalCategory);
+            if (res.IsSuccessStatusCode) {
+                AlertSuccess = "Sucessfully edited category " + ModalCategory.Name;
+            } else {
+                AlertError = "Error when editing category: " + (int)res.StatusCode + " " + res.ReasonPhrase;
+            }
+            CloseModal();
+            SaveButtonDisabled = false;
+            StateHasChanged();
+            await OnInitializedAsync();
+            StateHasChanged();
+        }
+    }
+
+    private async void RemoveCategorySubmit() {
+
+        SaveButtonDisabled = true;
+        DismissAllAlerts();
+        var res = await Http.DeleteAsync("api/category/" + ModalCategory.Id);
+        if (res.IsSuccessStatusCode) {
+            AlertSuccess = "Sucessfully removed category " + ModalCategory.Name;
+        } else {
+            AlertError = "Error when removed category: " + (int)res.StatusCode + " | " + res.ReasonPhrase;
+        }
+        CloseModal();
+        SaveButtonDisabled = false;
+        StateHasChanged();
+        await OnInitializedAsync();
+        StateHasChanged();
+    }
+
+    private void DismissAllAlerts() {
+        AlertError = null;
+        AlertSuccess = null;
+    }
+}

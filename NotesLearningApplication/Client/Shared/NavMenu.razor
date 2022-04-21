@@ -1,0 +1,70 @@
+﻿@inject IJSRuntime JS
+
+
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">NotesLearningApplication</a>
+        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+    </div>
+</div>
+
+<div class="@NavMenuCssClass" @onclick="ToggleNavMenu">
+    <nav class="flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="oi oi-home" aria-hidden="true"></span> Home
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="MyNotes">
+                <span class="oi oi-task" aria-hidden="true"></span> My notes
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="Categories">
+                <span class="oi oi-list" aria-hidden="true"></span> Categories
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3 " @onclick=ChangeTheme style="cursor:pointer">
+            <NavLink class="nav-link">
+             
+                    <span class="oi oi-contrast" aria-hidden="true"></span> Change theme
+              
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <hr />
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="Login">
+                <AuthorizeView>
+                    <Authorized>
+                        <span class="oi oi-person" aria-hidden="true"></span> @context.User.Claims.First(c => c.Type=="Username").Value
+                    </Authorized>
+                    <NotAuthorized>
+                        <span class="oi oi-account-login" aria-hidden="true"></span> Login/Registration
+                    </NotAuthorized>
+                </AuthorizeView>
+            </NavLink>
+        </div>
+    </nav>
+</div>
+
+@code {
+    private bool collapseNavMenu = true;
+    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+
+
+    private void ToggleNavMenu() {
+        collapseNavMenu = !collapseNavMenu;
+
+    }
+
+    private async Task ChangeTheme() {
+        await JS.InvokeVoidAsync("ChangeTheme");
+    }
+
+}

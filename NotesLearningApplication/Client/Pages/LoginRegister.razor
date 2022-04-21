@@ -1,0 +1,116 @@
+﻿@page "/Login"
+@page "/Register"
+@using NotesLearningApplication.Shared.DTO
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+@inject ILocalStorageService LocalStorage
+@inject NavigationManager NavManager
+
+@if (AlertSuccess != null) {
+    <div class="alert alert-dismissible alert-success">
+        <button type="button" class="btn-close" @onclick=DismissAllAlerts></button>
+        <p> @AlertSuccess</p>
+    </div>
+}
+@if (AlertError != null) {
+    <div class="alert alert-dismissible alert-danger">
+        <button type="button" class="btn-close" @onclick=DismissAllAlerts></button>
+        <p> @AlertError</p>
+    </div>
+}
+<AuthorizeView>
+    <NotAuthorized>
+<h3>Login/Register</h3>
+        <div class="card  w-80 border-primary">
+            <div class="card-body">
+                <h5 class="card-title">Login/Register</h5>
+                <div class="card-body">         
+                    <EditForm Model="@ModalUser" @ref=ModalDialogForm Context=EditFromContext  OnValidSubmit=LoginSubmit>
+                    <DataAnnotationsValidator />
+                    <div class="form-group">
+                        <label>Username</label>
+                        <div>
+                            <InputText style="width: 80%" id="Name" @bind-Value="ModalUser.Username" />
+                            <ValidationMessage For="()=>ModalUser.Username">Username is required and must be non-empty</ValidationMessage>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <div>
+                            <InputText type="password" style="width: 80%" id="Description" @bind-Value="ModalUser.Password" />
+                            <ValidationMessage For="()=>ModalUser.Password">Password length must be at least 6</ValidationMessage>
+                        </div>
+                    </div>
+                </EditForm>
+                </div>
+                <div class="card-footer">
+                <button type="button" class="btn btn-primary" @onclick=LoginSubmit disabled=@LoginButtonDisabled>Login</button>
+                <button type="button" class="btn btn-success" @onclick=RegisterSubmit disabled=@RegisterButtonDisabled>Register</button>
+                </div>
+            </div>
+        </div>
+    </NotAuthorized>
+    <Authorized>
+        <div>You are already logged, @context.User.Claims.First(c => c.Type=="Username").Value</div>
+        <button type="button" class="btn btn-primary" @onclick=Logout disabled=@LogoutButtonDisabled>Logout</button>
+    </Authorized>
+</AuthorizeView>
+
+@code {
+
+    EditForm ModalDialogForm;
+    private UserDTO ModalUser=new();
+    private string? AlertSuccess;
+    private string? AlertError;
+
+    private bool LoginButtonDisabled = false;
+    private bool RegisterButtonDisabled = false;
+     private bool LogoutButtonDisabled = false;
+
+    private async void RegisterSubmit() {
+        if (ModalDialogForm.EditContext.Validate()) {
+            LoginButtonDisabled = true;
+            DismissAllAlerts();
+            var res = await Http.PostAsJsonAsync<UserDTO>("api/users/register", ModalUser);
+            if (res.IsSuccessStatusCode) {
+                AlertSuccess = "Sucessfully registered";
+                var token = await res.Content.ReadAsStringAsync();
+                await LocalStorage.SetItemAsStringAsync("token", token);
+                await AuthStateProvider.GetAuthenticationStateAsync();
+            } else {
+                AlertError = "Error when registering: " + (int)res.StatusCode + " " + res.ReasonPhrase;
+            }
+            LoginButtonDisabled = false;
+            StateHasChanged();
+        }
+    }
+    private async void LoginSubmit() {
+        if (ModalDialogForm.EditContext.Validate()) {
+            RegisterButtonDisabled = true;
+            DismissAllAlerts();
+            var res = await Http.PostAsJsonAsync<UserDTO>("api/users/login", ModalUser);
+            if (res.IsSuccessStatusCode) {
+                AlertSuccess = "Sucessfully logged";
+                var token = await res.Content.ReadAsStringAsync();
+                await LocalStorage.SetItemAsStringAsync("token", token);
+                await AuthStateProvider.GetAuthenticationStateAsync();
+            } else {
+                AlertError = "Error when logging: " + (int)res.StatusCode + " " + res.ReasonPhrase;
+            }
+            RegisterButtonDisabled = false;
+            StateHasChanged();
+        }
+    }
+    private async void Logout() {
+        LogoutButtonDisabled = true;
+        await LocalStorage.RemoveItemAsync("token");
+        await AuthStateProvider.GetAuthenticationStateAsync();
+        LogoutButtonDisabled = false;
+         StateHasChanged();
+    }
+    
+    private void DismissAllAlerts() {
+        AlertError = null;
+        AlertSuccess = null;
+    }
+}

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>NotesLearningApplication</title>
+    <base href="/" />
+    <link href="css/bootstrap/bootstrap.min.css" rel="stylesheet" />
+    <link href="css/bootstrap/boostrap-dark.min.css" rel="stylesheet">
+    <link href="css/app.css" rel="stylesheet" />
+    <link href="NotesLearningApplication.Client.styles.css" rel="stylesheet" />
+</head>
+
+<body>
+    <div id="app">
+        <div class="text-center m-5">
+            <div class="spinner-border" role="status" />
+        </div>
+    </div>
+
+    <div id="blazor-error-ui">
+        An unhandled error has occurred.
+        <a href="" class="reload">Reload</a>
+        <a class="dismiss">🗙</a>
+    </div>
+    <script src="_framework/blazor.webassembly.js"></script>
+    <script src="js/jquery.min.js"></script>
+    <script src="_content/Plotly.Blazor/plotly-latest.min.js" type="text/javascript"></script>
+    <script src="_content/Plotly.Blazor/plotly-interop.js" type="text/javascript"></script>
+    <script>
+        //THEME CHANGE FUNCTIONS
+        function LoadTheme() {
+            if (localStorage["theme"] == "dark") {
+                $("link[href$='bootstrap.min.css']").prop('disabled', true);
+                $("link[href$='boostrap-dark.min.css']").prop('disabled', false);
+            } else {
+                $("link[href$='boostrap-dark.min.css']").prop('disabled', true);
+                $("link[href$='bootstrap.min.css']").prop('disabled', false);
+            }
+        }
+
+        function ChangeTheme() {
+            if (localStorage["theme"] == "light") {
+                localStorage["theme"] = "dark";
+                LoadTheme();
+            } else {
+                localStorage["theme"] = "light";
+                LoadTheme();
+            }
+        }
+
+        LoadTheme();
+    </script>
+</body>
+
+</html>
